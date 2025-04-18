@@ -1,6 +1,7 @@
 import express from 'express';
 import { WebSocketServer } from 'ws';
 import { createClient } from "redis";
+import { produseMessage ,ConsumeMessages } from './Kafka/ProduserAndConsumer.js';
 
 const app = express();
 const httpServer = app.listen(8080);
@@ -23,7 +24,7 @@ redisSubscriber.on('connect', () => console.log('Connected to Redis (Subscriber)
 redisSubscriber.connect().catch(console.error);
 
 const subscribeToMessages = async () => {
-    await redisSubscriber.subscribe("MESSAGE", (message) => {
+    await redisSubscriber.subscribe("MESSAGE", async(message) => {
         try {
             const data = JSON.parse(message);
             const { roomId, userId, message: msg } = data;
@@ -34,6 +35,7 @@ const subscribeToMessages = async () => {
                     user.ws.send(JSON.stringify({ type: "message", payload: { message: msg, roomId, userId } }));
                 }
             }
+            await produseMessage({ message: msg, roomId, userId});
         } catch (error) {
             console.error("Error processing Redis message:", error);
         }
@@ -41,6 +43,7 @@ const subscribeToMessages = async () => {
 };
 
 subscribeToMessages();
+ConsumeMessages();
 
 let counter = 0;
 
